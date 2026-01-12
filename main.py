@@ -118,7 +118,7 @@ async def tmdb_cards_from_results(
         result: List[dict], limit: int = 20
 ) -> List [TMDBMovieCard]:
     out: List[TMDBMovieCard] = []
-    for m in (results or [])[:limit]:
+    for m in (result or [])[:limit]:
         out.append(
             TMDBMovieCard(
                 tmdb_id=int(m["id"]),
@@ -132,7 +132,7 @@ async def tmdb_cards_from_results(
 
 
 async def tmdb_movie_details(movie_id: int) -> TMDBMovieDetails:
-    data = await tmdb_get(f"/movie/{movie_id}", {language: "en-US"})
+    data = await tmdb_get(f"/movie/{movie_id}", {"language": "en-US"})
     return TMDBMovieDetails(
         tmdb_id=int(data["id"]),
         title=data.get("title") or "",
@@ -193,11 +193,15 @@ def get_local_idx_by_title(title: str) -> int:
     global TITLE_TO_IDX
     if TITLE_TO_IDX is None:
         raise HTTPException(status_code=500, detail="TF-IDF index map not initialized.")
+
     key = _norm_title(title)
-    if key not in TITLE_TO_IDX:
+
+    if key in TITLE_TO_IDX:          # ✅ correct condition
         return int(TITLE_TO_IDX[key])
+
     raise HTTPException(
-        status_code=404, detail=f"Movie title '{title}' not found in TF-IDF index.")
+        status_code=404, detail=f"Movie title '{title}' not found in TF-IDF index."
+    )
 
 
 
@@ -216,7 +220,7 @@ def tfidf_recommend_titles(
 
 
     qv = tfidf_matrix[idx]
-    scores = (tfidf_matrix @ qv.T).toarray().ravel()
+    scores = (tfidf_matrix * qv.T).toarray().ravel()
 
     order = np.argsort(-scores)
 
@@ -246,7 +250,7 @@ async def attach_tmdb_card_by_title(title: str) -> Optional[TMDBMovieCard]:
         return TMDBMovieCard(
             tmdb_id=int(m["id"]),
             title=m.get("title") or title,
-            poster_url=make_img_url(m.get("poster_path")),
+            poster_url=make_image_url(m.get("poster_path")),
             release_date=m.get("release_date"),
             vote_average=m.get("vote_average"),
         )
@@ -428,7 +432,7 @@ async def search_bundle(
         )
         genre_recs = [c for c in cards if c.tmdb_id != details.tmdb_id]
 
-    return SearchBundleResponse(
+    return SearchBunchResponse(
         query=query,
         movie_details=details,
         tfidf_recommendations=tfidf_items,
